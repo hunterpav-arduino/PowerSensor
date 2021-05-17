@@ -80,8 +80,8 @@ void setup(){
   pinMode(I_PIN, OUTPUT);
   digitalWrite(I_PIN, pin_9);
 
-  emon1.voltage(32, 835, 0);  // Voltage: input pin, calibration, phase_shift 283 1.7 835
-  emon1.current(33, 130);       // Current: input pin, calibration. 28 130
+  emon1.voltage(32, 213.5, 1.7);  // Voltage: input pin, calibration, phase_shift 283 1.7 835
+  emon1.current(33, 32);       // Current: input pin, calibration. 28 130
 
 
   config.apid = "POWER-ap";
