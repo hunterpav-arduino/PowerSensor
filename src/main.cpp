@@ -33,7 +33,7 @@ AutoConnect portal(server);
 #define PING_TIMEOUT_MS 6000 //set from 500 to 1000 to see if its better for discons/hr
 #define SUBACK_TIMEOUT_MS 6000 //set from 500 to 1000 to see if its better for discons/hr
 void msgReceived(char* topic, byte* payload, unsigned int len);
-char* mqtt_server = "192.168.3.1";
+char* mqtt_server = "192.168.8.1";
 
 #define CREDENTIAL_OFFSET 64
 uint8_t opcode; // register
@@ -41,6 +41,7 @@ int I_HIGH    = 19;
 int I_LOW     = 9;
 int I_REPEATS = 5;
 int I_PIN = 25;
+int msgCount = 0;
 
 
 EnergyMonitor emon1;             // Create an instance
@@ -74,7 +75,7 @@ void setup(){
   Serial.begin(115200);
   Serial.println("Starting...");
 
-  wdtTicker.attach(60, wdtTickerCheck);
+  wdtTicker.attach(300, wdtTickerCheck);
 
    
   pinMode(I_PIN, OUTPUT);
@@ -97,6 +98,19 @@ void setup(){
   config.reconnectInterval = 3;   // Seek interval time is 180[s].
   
   portal.config(config);
+
+  server.on("/clear-wifi", []() {
+    AutoConnectCredential credential;
+    station_config_t cfg;
+    uint8_t ent = credential.entries();
+
+    while (ent--) {
+      credential.load(ent, &cfg);
+      credential.del((const char*)&cfg.ssid[0]);
+    }
+    server.sendHeader("Location", String("/_ac/config"), true);
+    server.send(302, "text/plane","");
+  });
 
   Serial.println("portal.begin...");
   portal.begin();
@@ -221,7 +235,8 @@ boolean reconnect() {
       // Once connected, publish an announcement...
       mqtt.publish("POWER-Sensor/connected", "hello world");
       // ... and resubscribe
-      mqtt.subscribe("POWER-Sensor/input");
+      // mqtt.subscribe("POWER-Sensor/input");
+      mqtt.subscribe("POWER-Sensor/output");
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqtt.state());
@@ -233,6 +248,7 @@ boolean reconnect() {
 
 
 void callback(char* topic, byte* message, unsigned int length) {
+  msgCount++;
   Serial.print("Message arrived on topic: ");
   Serial.print(topic);
   Serial.print(". Message: ");
@@ -243,29 +259,20 @@ void callback(char* topic, byte* message, unsigned int length) {
   }
   myNewArray[length] = NULL;
   Serial.println();
-
-  // Feel free to add more if statements to control more GPIOs with MQTT
-
-  // If a message is received on the topic esp32/output, you check if the message is either "on" or "off". 
-  // Changes the output state according to the message
-//  if (String(topic) == "POWER-Sensor/input") {
-//    myObject = JSON.parse(myNewArray);
-//    Serial.print("Changing output to ");
-//    mainText = String(myNewArray);
-//    Serial.print((const char*) myObject["pass"]);
-//    Serial.println((const char*) myObject["next"]);
-//  }
   
 }
 
 
 int wdtTickerCount = 0;
 void wdtTickerCheck(){
+  
+  if( (wdtTickerCount > 5) || (msgCount < 5) ){
+    ESP.restart();
+  }
+  msgCount = 0;
+
   if (WiFi.status() != WL_CONNECTED || !mqtt.connected()) {
     wdtTickerCount++;
   }
 
-  if(wdtTickerCount > 5){
-    ESP.restart();
-  }
 }
