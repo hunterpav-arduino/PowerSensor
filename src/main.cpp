@@ -33,7 +33,10 @@ AutoConnect portal(server);
 #define PING_TIMEOUT_MS 6000 //set from 500 to 1000 to see if its better for discons/hr
 #define SUBACK_TIMEOUT_MS 6000 //set from 500 to 1000 to see if its better for discons/hr
 void msgReceived(char* topic, byte* payload, unsigned int len);
-char* mqtt_server = "192.168.8.1";
+char* mqtt_server = "192.168.5.1";
+
+#define DELAY_TIME 10; // mins
+bool is_delay = true;
 
 #define CREDENTIAL_OFFSET 64
 uint8_t opcode; // register
@@ -57,7 +60,7 @@ int l_counter         = 0;
 int b                 = 0;
 
 byte data[10];
-bool pin_9            = true;
+bool pin_9            = false;
 
 long lastReconnectAttempt = 0;
 StaticJsonDocument<256> doc;
@@ -132,6 +135,7 @@ void setup(){
 
 void loop(){
 
+  is_delay = (millis() / 1000 / 60) < DELAY_TIME;
 
   if (WiFi.status() == WL_CONNECTED) {
     // Here to do when WiFi is connected.
@@ -213,16 +217,18 @@ void emonTick( void * pvParameters ){
     }
   
     if(h_counter > I_REPEATS && pin_9 == true ){
-      pin_9 = false;
       h_counter = 0;
+      pin_9 = false;
       digitalWrite(I_PIN, pin_9);
     }
   
     if(l_counter > I_REPEATS && pin_9 == false ){
-      pin_9 = true;
       l_counter = 0;
+      if(is_delay)
+      pin_9 = true;
       digitalWrite(I_PIN, pin_9);
     }
+
     vTaskDelay(100);
     Serial.println("emonTick");
   }
